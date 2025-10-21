@@ -233,21 +233,6 @@ install_ohmyzsh() {
         warning "oh-my-zsh安装失败或用户取消，尝试继续执行"
     fi
     
-    # 安装zsh-autosuggestions插件
-    log "安装zsh-autosuggestions插件..."
-    if [ ! -d "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
-        git clone https://github.com/zsh-users/zsh-autosuggestions "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
-    else
-        log "zsh-autosuggestions插件已存在"
-    fi
-    
-    # 安装zsh-syntax-highlighting插件
-    log "安装zsh-syntax-highlighting插件..."
-    if [ ! -d "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
-    else
-        log "zsh-syntax-highlighting插件已存在"
-    fi
     
     # 下载自定义zshrc配置
     log "下载自定义zshrc配置..."
