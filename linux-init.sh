@@ -228,8 +228,9 @@ install_ohmyzsh() {
     
     # 安装oh-my-zsh
     log "安装oh-my-zsh..."
-    if ! sh -c "$(curl -fsSL https://install.ohmyz.sh/)"; then
-        warning "oh-my-zsh安装失败，尝试继续执行"
+    # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+    if ! (sh -c "$(curl -fsSL https://install.ohmyz.sh/)"); then
+        warning "oh-my-zsh安装失败或用户取消，尝试继续执行"
     fi
     
     # 安装zsh-autosuggestions插件
@@ -280,10 +281,12 @@ configure_ssh() {
     else
         if [ "$HAS_SUDO" = true ]; then
             sudo chmod +x ./upgrade_openssh.sh
-            sudo ./upgrade_openssh.sh
+            # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+            (sudo ./upgrade_openssh.sh) || warning "OpenSSH升级脚本执行失败或用户取消"
         else
             chmod +x ./upgrade_openssh.sh
-            ./upgrade_openssh.sh
+            # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+            (./upgrade_openssh.sh) || warning "OpenSSH升级脚本执行失败或用户取消"
         fi
         # 清理临时文件
         rm -f upgrade_openssh.sh
@@ -402,7 +405,10 @@ configure_network() {
         else
             chmod +x tools.sh
             echo -e "${YELLOW}即将运行外部网络优化脚本，完成后请按Ctrl+C返回本脚本${NC}"
-            ./tools.sh
+            # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+            (./tools.sh) || warning "网络优化脚本执行失败或用户取消"
+            # 清理临时文件
+            rm -f tools.sh
         fi
     fi
     
@@ -427,7 +433,10 @@ configure_zram() {
             warning "下载zram脚本失败"
         else
             chmod +x addzram.sh
-            bash addzram.sh
+            # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+            (bash addzram.sh) || warning "zram脚本执行失败或用户取消"
+            # 清理临时文件
+            rm -f addzram.sh
         fi
     else
         log "非KVM虚拟化环境，跳过zram配置"
@@ -462,11 +471,12 @@ install_monitor_agent() {
     
     log "安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
     
-    bash <(curl -sL https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh) \
+    # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+    (bash <(curl -sL https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh) \
         -e "$monitor_server" \
         --auto-discovery "$auto_discovery" \
         --disable-web-ssh \
-        --month-rotate "$month_rotate"
+        --month-rotate "$month_rotate") || warning "监控探针安装脚本执行失败或用户取消"
     
     update_progress "监控探针安装" "x" "已安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
 }
