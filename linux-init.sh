@@ -171,8 +171,7 @@ install_basic_tools() {
             ;;
         alpine)
             install_cmd="apk add"
-            # Alpine中sudo可能叫sudo-shadow
-            packages="wget curl jq sudo-shadow vnstat nano zsh git"
+            packages="wget curl jq sudo vnstat nano zsh git"
             ;;
     esac
     
