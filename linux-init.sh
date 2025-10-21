@@ -254,11 +254,17 @@ install_ohmyzsh() {
     if ! wget -qO ~/.zshrc "https://gist.githubusercontent.com/Seameee/ab0a81e3ef476e6059f35a0785f12a32/raw/.zshrc"; then
         warning "下载自定义zshrc配置失败"
     else
-        # 应用配置
-        source ~/.zshrc
+        log "自定义zshrc配置已下载"
     fi
     
     update_progress "oh-my-zsh配置" "x" "已完成oh-my-zsh和插件安装"
+    
+    # 在所有系统上，都提示用户手动切换，避免脚本中断
+    echo -e "${YELLOW}oh-my-zsh配置已完成！${NC}"
+    echo -e "${YELLOW}要应用zsh配置，请手动运行以下命令切换到zsh环境：${NC}"
+    echo -e "${GREEN}exec zsh${NC}"
+    echo -e "${YELLOW}或者重新登录系统${NC}"
+    echo -e "${YELLOW}注意：切换到zsh后，当前bash会话将结束${NC}"
 }
 
 # SSH安全配置函数
