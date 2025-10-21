@@ -535,16 +535,16 @@ main() {
     show_welcome
     init_progress
     
-    # 执行初始化步骤
+    # 执行初始化步骤（将oh-my-zsh配置放在最后）
     detect_system
     update_packages
     install_basic_tools
-    install_ohmyzsh
     configure_ssh
     configure_network
     configure_zram
     install_monitor_agent
     configure_logrotate
+    install_ohmyzsh
     
     # 完成初始化
     update_progress "初始化完成" "x" "所有初始化步骤已完成"
@@ -559,12 +559,12 @@ main() {
     echo "    ✓ 系统环境检测"
     echo "    ✓ 软件包更新和升级"
     echo "    ✓ 基础工具安装"
-    echo "    ✓ oh-my-zsh配置"
     echo "    ✓ SSH安全配置"
     echo "    ✓ 网络优化配置"
     echo "    ✓ zram配置（如适用）"
     echo "    ✓ 监控探针安装"
     echo "    ✓ 日志轮转配置（如适用）"
+    echo "    ✓ oh-my-zsh配置"
     echo "==========================================="
     echo -e "${NC}"
 }
