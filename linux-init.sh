@@ -440,6 +440,14 @@ configure_zram() {
 install_monitor_agent() {
     log "开始安装监控探针..."
     
+    echo -e "${YELLOW}请输入主控服务器地址（-e 参数）：${NC}"
+    read -p "主控服务器地址: " monitor_server
+    if [ -z "$monitor_server" ]; then
+        warning "未输入主控服务器地址，跳过监控探针安装"
+        update_progress "监控探针安装" "x" "用户取消监控探针安装"
+        return 0
+    fi
+    
     echo -e "${YELLOW}请输入--auto-discovery参数值：${NC}"
     read -p "auto-discovery值: " auto_discovery
     if [ -z "$auto_discovery" ]; then
@@ -452,15 +460,15 @@ install_monitor_agent() {
     read -p "month-rotate值: " month_rotate
     month_rotate=${month_rotate:-12}
     
-    log "安装komari监控探针，auto-discovery: $auto_discovery, month-rotate: $month_rotate"
+    log "安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
     
     bash <(curl -sL https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh) \
-        -e https://monitor.seaya.link \
+        -e "$monitor_server" \
         --auto-discovery "$auto_discovery" \
         --disable-web-ssh \
         --month-rotate "$month_rotate"
     
-    update_progress "监控探针安装" "x" "已安装komari监控探针，auto-discovery: $auto_discovery, month-rotate: $month_rotate"
+    update_progress "监控探针安装" "x" "已安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
 }
 
 # 日志轮转配置函数
