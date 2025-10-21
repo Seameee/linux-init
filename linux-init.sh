@@ -265,6 +265,12 @@ install_ohmyzsh() {
     echo -e "${GREEN}exec zsh${NC}"
     echo -e "${YELLOW}或者重新登录系统${NC}"
     echo -e "${YELLOW}注意：切换到zsh后，当前bash会话将结束${NC}"
+    echo ""
+    echo -e "${YELLOW}如果切换到zsh后出现插件未找到的错误，请运行以下命令重新覆盖配置：${NC}"
+    echo -e "${GREEN}git clone https://github.com/zsh-users/zsh-autosuggestions \${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions${NC}"
+    echo -e "${GREEN}git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting${NC}"
+    echo -e "${GREEN}wget -qO ~/.zshrc \"https://gist.githubusercontent.com/Seameee/ab0a81e3ef476e6059f35a0785f12a32/raw/.zshrc\"${NC}"
+    echo -e "${GREEN}source ~/.zshrc${NC}"
 }
 
 # SSH安全配置函数
