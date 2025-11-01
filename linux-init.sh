@@ -397,7 +397,7 @@ configure_network() {
         fi
     else
         log "使用外部脚本进行网络优化..."
-        if ! wget -N "http://sh.nekoneko.cloud/tools.sh" -O tools.sh; then
+        if ! wget -N "https://raw.githubusercontent.com/Seameee/bbr-script/refs/heads/master/tools.sh" -O tools.sh; then
             warning "下载网络优化脚本失败"
         else
             chmod +x tools.sh
