@@ -18,6 +18,84 @@ NC='\033[0m' # No Color
 PROGRESS_FILE="/tmp/linux-init-progress.md"
 LOG_FILE="/tmp/linux-init.log"
 
+# 镜像站配置
+GITHUB_MIRROR="https://mirrors.seaya.link/"
+
+# 下载函数（支持镜像回退）
+download_with_fallback() {
+    local url="$1"
+    local output="$2"
+    local max_attempts=3
+    local attempt=1
+    
+    # 如果是GitHub链接，生成镜像链接
+    local mirror_url=""
+    if [[ "$url" == *"github.com"* ]] || [[ "$url" == *"githubusercontent.com"* ]]; then
+        mirror_url="${GITHUB_MIRROR}${url}"
+    fi
+    
+    while [ $attempt -le $max_attempts ]; do
+        log "尝试下载 (第${attempt}次): $url"
+        
+        # 尝试原始链接
+        if wget -qO "$output" "$url"; then
+            log "下载成功: $url"
+            return 0
+        fi
+        
+        # 如果镜像链接存在，尝试镜像链接
+        if [ -n "$mirror_url" ]; then
+            log "原始链接失败，尝试镜像链接: $mirror_url"
+            if wget -qO "$output" "$mirror_url"; then
+                log "镜像链接下载成功: $mirror_url"
+                return 0
+            fi
+        fi
+        
+        attempt=$((attempt + 1))
+        if [ $attempt -le $max_attempts ]; then
+            log "下载失败，等待3秒后重试..."
+            sleep 3
+        fi
+    done
+    
+    warning "所有下载尝试都失败了: $url"
+    return 1
+}
+
+# 执行远程脚本函数（支持镜像回退）
+execute_remote_script() {
+    local url="$1"
+    shift
+    local args="$@"
+    
+    # 如果是GitHub链接，生成镜像链接
+    local mirror_url=""
+    if [[ "$url" == *"github.com"* ]] || [[ "$url" == *"githubusercontent.com"* ]]; then
+        mirror_url="${GITHUB_MIRROR}${url}"
+    fi
+    
+    log "尝试执行远程脚本: $url"
+    
+    # 尝试原始链接
+    if bash <(curl -fsSL "$url") $args; then
+        log "远程脚本执行成功: $url"
+        return 0
+    fi
+    
+    # 如果镜像链接存在，尝试镜像链接
+    if [ -n "$mirror_url" ]; then
+        log "原始链接失败，尝试镜像链接: $mirror_url"
+        if bash <(curl -fsSL "$mirror_url") $args; then
+            log "镜像链接脚本执行成功: $mirror_url"
+            return 0
+        fi
+    fi
+    
+    warning "远程脚本执行失败: $url"
+    return 1
+}
+
 # 初始化进度文件
 init_progress() {
     cat > "$PROGRESS_FILE" << EOF
@@ -26,6 +104,7 @@ init_progress() {
 
 ## 执行步骤
 - [ ] 系统环境检测
+- [ ] 时区检测和设置
 - [ ] 软件包更新
 - [ ] 基础软件安装
 - [ ] oh-my-zsh配置
@@ -236,7 +315,7 @@ install_ohmyzsh() {
     
     # 下载自定义zshrc配置
     log "下载自定义zshrc配置..."
-    if ! wget -qO ~/.zshrc "https://gist.githubusercontent.com/Seameee/ab0a81e3ef476e6059f35a0785f12a32/raw/.zshrc"; then
+    if ! download_with_fallback "https://gist.githubusercontent.com/Seameee/ab0a81e3ef476e6059f35a0785f12a32/raw/.zshrc" "$HOME/.zshrc"; then
         warning "下载自定义zshrc配置失败"
     else
         log "自定义zshrc配置已下载"
@@ -273,7 +352,7 @@ configure_ssh() {
     
     # 下载并运行OpenSSH升级脚本
     log "下载OpenSSH升级脚本..."
-    if ! wget -O upgrade_openssh.sh "https://gist.github.com/Seameee/2061e673132b05e5ed8dd6eb125f1fd1/raw/upgrade_openssh.sh"; then
+    if ! download_with_fallback "https://gist.github.com/Seameee/2061e673132b05e5ed8dd6eb125f1fd1/raw/upgrade_openssh.sh" "upgrade_openssh.sh"; then
         warning "下载OpenSSH升级脚本失败"
     else
         if [ "$HAS_SUDO" = true ]; then
@@ -385,28 +464,17 @@ configure_network() {
         return 0
     fi
     
-    # 检查是否为Debian系统且版本>=13
-    if [ "$SYSTEM_ID" = "debian" ] && [ "$SYSTEM_VERSION" -ge "13" ]; then
-        log "在Debian 13+系统上配置BBR..."
-        if [ "$HAS_SUDO" = true ]; then
-            echo -e "net.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr" | sudo tee /etc/sysctl.d/99-bbr.conf > /dev/null
-            sudo sysctl --system
-        else
-            echo -e "net.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr" > /etc/sysctl.d/99-bbr.conf
-            sysctl --system
-        fi
+    # 统一使用外部脚本进行网络优化
+    log "使用外部脚本进行网络优化..."
+    if ! download_with_fallback "https://raw.githubusercontent.com/Seameee/bbr-script/refs/heads/master/tools.sh" "tools.sh"; then
+        warning "下载网络优化脚本失败"
     else
-        log "使用外部脚本进行网络优化..."
-        if ! wget -N "https://raw.githubusercontent.com/Seameee/bbr-script/refs/heads/master/tools.sh" -O tools.sh; then
-            warning "下载网络优化脚本失败"
-        else
-            chmod +x tools.sh
-            echo -e "${YELLOW}即将运行外部网络优化脚本，完成后请按Ctrl+C返回本脚本${NC}"
-            # 使用子shell运行，即使外部脚本退出也不会影响主脚本
-            (./tools.sh) || warning "网络优化脚本执行失败或用户取消"
-            # 清理临时文件
-            rm -f tools.sh
-        fi
+        chmod +x tools.sh
+        echo -e "${YELLOW}即将运行外部网络优化脚本，完成后请按Ctrl+C返回本脚本${NC}"
+        # 使用子shell运行，即使外部脚本退出也不会影响主脚本
+        (./tools.sh) || warning "网络优化脚本执行失败或用户取消"
+        # 清理临时文件
+        rm -f tools.sh
     fi
     
     update_progress "网络优化配置" "x" "已完成网络优化配置"
@@ -426,7 +494,7 @@ configure_zram() {
     # 确保是KVM虚拟化
     if [ "$VIRT_TYPE" = "kvm" ]; then
         log "在KVM虚拟化环境下配置zram..."
-        if ! curl -L https://raw.githubusercontent.com/spiritLHLS/addzram/main/addzram.sh -o addzram.sh; then
+        if ! download_with_fallback "https://raw.githubusercontent.com/spiritLHLS/addzram/main/addzram.sh" "addzram.sh"; then
             warning "下载zram脚本失败"
         else
             chmod +x addzram.sh
@@ -469,13 +537,161 @@ install_monitor_agent() {
     log "安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
     
     # 使用子shell运行，即使外部脚本退出也不会影响主脚本
-    (bash <(curl -sL https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh) \
+    (execute_remote_script "https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh" \
         -e "$monitor_server" \
         --auto-discovery "$auto_discovery" \
         --disable-web-ssh \
         --month-rotate "$month_rotate") || warning "监控探针安装脚本执行失败或用户取消"
     
     update_progress "监控探针安装" "x" "已安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
+}
+
+# 时区检测和设置函数
+configure_timezone() {
+    log "开始检测和设置时区..."
+    
+    local target_timezone="Asia/Shanghai"
+    local current_timezone=""
+    local timezone_changed=false
+    
+    # 检测当前时区
+    if command -v timedatectl >/dev/null 2>&1; then
+        # 使用timedatectl检测时区（systemd系统）
+        current_timezone=$(timedatectl show --property=Timezone --value 2>/dev/null || echo "")
+        if [ -n "$current_timezone" ]; then
+            log "当前时区 (timedatectl): $current_timezone"
+        fi
+    fi
+    
+    # 如果timedatectl不可用，尝试其他方法
+    if [ -z "$current_timezone" ]; then
+        if [ -f /etc/timezone ]; then
+            # 读取/etc/timezone文件
+            current_timezone=$(cat /etc/timezone 2>/dev/null | tr -d '[:space:]' || echo "")
+            if [ -n "$current_timezone" ]; then
+                log "当前时区 (/etc/timezone): $current_timezone"
+            fi
+        fi
+    fi
+    
+    # 如果仍然无法检测，使用date命令
+    if [ -z "$current_timezone" ]; then
+        current_timezone=$(date +%Z 2>/dev/null || echo "")
+        log "当前时区 (date): $current_timezone"
+    fi
+    
+    # 检查是否需要设置时区
+    if [ "$current_timezone" = "$target_timezone" ] || [ "$current_timezone" = "CST" ]; then
+        log "当前时区已经是 $target_timezone，无需更改"
+        update_progress "时区检测和设置" "x" "当前时区已是 $target_timezone，无需更改"
+        return 0
+    fi
+    
+    # 设置时区
+    log "当前时区不是 $target_timezone，开始设置时区..."
+    
+    # 方法1: 优先使用setup-timezone（Alpine系统）
+    if command -v setup-timezone >/dev/null 2>&1; then
+        log "使用setup-timezone设置时区..."
+        if [ "$HAS_SUDO" = true ]; then
+            if echo "$target_timezone" | sudo setup-timezone; then
+                timezone_changed=true
+                log "setup-timezone设置时区成功"
+            else
+                warning "setup-timezone设置时区失败"
+            fi
+        else
+            if echo "$target_timezone" | setup-timezone; then
+                timezone_changed=true
+                log "setup-timezone设置时区成功"
+            else
+                warning "setup-timezone设置时区失败"
+            fi
+        fi
+    fi
+    
+    # 方法2: 使用timedatectl（systemd系统）
+    if [ "$timezone_changed" = false ] && command -v timedatectl >/dev/null 2>&1; then
+        log "使用timedatectl设置时区..."
+        if [ "$HAS_SUDO" = true ]; then
+            if sudo timedatectl set-timezone "$target_timezone"; then
+                timezone_changed=true
+                log "timedatectl设置时区成功"
+            else
+                warning "timedatectl设置时区失败"
+            fi
+        else
+            if timedatectl set-timezone "$target_timezone"; then
+                timezone_changed=true
+                log "timedatectl设置时区成功"
+            else
+                warning "timedatectl设置时区失败"
+            fi
+        fi
+    fi
+    
+    # 方法3: 手动设置时区文件（通用方法）
+    if [ "$timezone_changed" = false ]; then
+        log "使用手动方法设置时区..."
+        
+        # 检查时区文件是否存在
+        local tzfile="/usr/share/zoneinfo/$target_timezone"
+        if [ ! -f "$tzfile" ]; then
+            warning "时区文件 $tzfile 不存在，无法设置时区"
+            update_progress "时区检测和设置" "x" "时区文件不存在，无法设置"
+            return 1
+        fi
+        
+        # 备份原有localtime文件
+        if [ -f /etc/localtime ]; then
+            if [ "$HAS_SUDO" = true ]; then
+                sudo cp /etc/localtime /etc/localtime.bak 2>/dev/null || true
+            else
+                cp /etc/localtime /etc/localtime.bak 2>/dev/null || true
+            fi
+        fi
+        
+        # 创建时区链接
+        if [ "$HAS_SUDO" = true ]; then
+            if sudo ln -sf "$tzfile" /etc/localtime; then
+                timezone_changed=true
+                log "手动设置时区链接成功"
+            else
+                warning "手动设置时区链接失败"
+            fi
+        else
+            if ln -sf "$tzfile" /etc/localtime; then
+                timezone_changed=true
+                log "手动设置时区链接成功"
+            else
+                warning "手动设置时区链接失败"
+            fi
+        fi
+        
+        # 更新/etc/timezone文件（如果存在）
+        if [ -f /etc/timezone ]; then
+            if [ "$HAS_SUDO" = true ]; then
+                echo "$target_timezone" | sudo tee /etc/timezone > /dev/null
+            else
+                echo "$target_timezone" > /etc/timezone
+            fi
+        fi
+    fi
+    
+    if [ "$timezone_changed" = true ]; then
+        log "时区已成功设置为 $target_timezone"
+        update_progress "时区检测和设置" "x" "时区已设置为 $target_timezone"
+        
+        # 显示新的时区信息
+        if command -v timedatectl >/dev/null 2>&1; then
+            timedatectl status
+        else
+            date
+        fi
+    else
+        warning "所有时区设置方法都失败了"
+        update_progress "时区检测和设置" "x" "时区设置失败，当前时区: $current_timezone"
+    fi
 }
 
 # 日志轮转配置函数
@@ -559,6 +775,7 @@ main() {
     
     # 执行初始化步骤（将oh-my-zsh配置放在最后）
     detect_system
+    configure_timezone
     update_packages
     install_basic_tools
     configure_ssh
@@ -579,6 +796,7 @@ main() {
     echo ""
     echo "    已完成以下配置："
     echo "    ✓ 系统环境检测"
+    echo "    ✓ 时区检测和设置"
     echo "    ✓ 软件包更新和升级"
     echo "    ✓ 基础工具安装"
     echo "    ✓ SSH安全配置"
