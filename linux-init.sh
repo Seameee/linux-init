@@ -457,10 +457,10 @@ show_welcome() {
 configure_network() {
     log "开始配置网络优化..."
     
-    # 如果是LXC容器，跳过此步骤
-    if [ "$VIRT_TYPE" = "lxc" ]; then
-        log "检测到LXC容器，跳过网络优化配置"
-        update_progress "网络优化配置" "x" "LXC容器，跳过网络优化"
+    # 如果是容器类型（LXC或其他容器），跳过此步骤
+    if [ "$VIRT_TYPE" = "lxc" ] || [ "$VIRT_TYPE" = "container" ]; then
+        log "检测到容器环境（$VIRT_TYPE），跳过网络优化配置"
+        update_progress "网络优化配置" "x" "容器环境，跳过网络优化"
         return 0
     fi
     
@@ -484,10 +484,10 @@ configure_network() {
 configure_zram() {
     log "开始配置zram..."
     
-    # 如果是LXC容器，跳过此步骤
-    if [ "$VIRT_TYPE" = "lxc" ]; then
-        log "检测到LXC容器，跳过zram配置"
-        update_progress "zram配置" "x" "LXC容器，跳过zram配置"
+    # 如果是容器类型（LXC或其他容器），跳过此步骤
+    if [ "$VIRT_TYPE" = "lxc" ] || [ "$VIRT_TYPE" = "container" ]; then
+        log "检测到容器环境（$VIRT_TYPE），跳过zram配置"
+        update_progress "zram配置" "x" "容器环境，跳过zram配置"
         return 0
     fi
     
@@ -698,8 +698,72 @@ configure_timezone() {
 configure_logrotate() {
     log "开始配置日志轮转..."
     
-    # 只在硬盘小于8GB时配置
-    if [ "$DISK_SIZE_GB" -lt 8 ]; then
+    # 如果是容器类型（LXC或其他容器），直接配置日志轮转
+    if [ "$VIRT_TYPE" = "lxc" ] || [ "$VIRT_TYPE" = "container" ]; then
+        log "检测到容器环境（$VIRT_TYPE），直接配置日志轮转..."
+        
+        local logrotate_file="/etc/logrotate.d/custom-vps"
+        local logrotate_content=$(cat << 'EOF'
+# 系统日志轮转配置
+/var/log/syslog
+/var/log/kern.log
+/var/log/auth.log
+{
+    # 每天轮转
+    daily
+    # 保留3个备份
+    rotate 3
+    # 启用压缩
+    compress
+    # 延迟压缩
+    delaycompress
+    # 文件不存在不报错
+    missingok
+    # 空文件不轮转
+    notifempty
+    # 达到50MB立即轮转（优先级高于daily）
+    size 50M
+    postrotate
+        /usr/lib/rsyslog/rsyslog-rotate
+    endscript
+}
+
+# systemd journal日志轮转配置
+/var/log/journal/*/*.journal
+{
+    # 每天检查
+    daily
+    # 只保留2个备份
+    rotate 2
+    # 启用压缩
+    compress
+    # 延迟压缩
+    delaycompress
+    # 文件不存在不报错
+    missingok
+    # 空文件不轮转
+    notifempty
+    # 达到10MB立即轮转
+    size 10M
+    # 对正在写入的文件安全处理
+    copytruncate
+    postrotate
+        # 重新加载journal配置
+        systemctl kill --kill-who=main --signal=SIGUSR2 systemd-journald
+    endscript
+}
+EOF
+        )
+        
+        if [ "$HAS_SUDO" = true ]; then
+            echo "$logrotate_content" | sudo tee "$logrotate_file" > /dev/null
+        else
+            echo "$logrotate_content" > "$logrotate_file"
+        fi
+        
+        update_progress "日志轮转配置" "x" "已配置日志轮转（容器环境）"
+    # 如果不是容器，只在硬盘小于8GB时配置
+    elif [ "$DISK_SIZE_GB" -lt 8 ]; then
         log "硬盘空间小于8GB，配置日志轮转..."
         
         local logrotate_file="/etc/logrotate.d/custom-vps"
