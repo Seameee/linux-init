@@ -198,6 +198,11 @@ detect_system() {
 
 # 软件包管理函数
 update_packages() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$SYSTEM_ID" ] || [ -z "$HAS_SUDO" ]; then
+        detect_system
+    fi
+    
     log "开始更新系统软件包..."
     
     local update_cmd=""
@@ -239,6 +244,11 @@ update_packages() {
 
 # 基础软件安装函数
 install_basic_tools() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$SYSTEM_ID" ] || [ -z "$HAS_SUDO" ]; then
+        detect_system
+    fi
+    
     log "开始安装基础工具..."
     
     local packages="wget curl jq sudo vnstat nano zsh git"
@@ -276,6 +286,11 @@ install_basic_tools() {
 
 # oh-my-zsh配置函数
 install_ohmyzsh() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$SYSTEM_ID" ] || [ -z "$HAS_SUDO" ]; then
+        detect_system
+    fi
+    
     log "开始配置oh-my-zsh..."
     
     # 检查是否已安装zsh
@@ -339,6 +354,11 @@ install_ohmyzsh() {
 
 # SSH安全配置函数
 configure_ssh() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$SYSTEM_ID" ] || [ -z "$HAS_SUDO" ]; then
+        detect_system
+    fi
+    
     log "开始配置SSH安全..."
     
     echo -e "${YELLOW}注意：SSH配置将禁用密码登录，只允许密钥登录${NC}"
@@ -455,6 +475,11 @@ show_welcome() {
 
 # 网络优化配置函数
 configure_network() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$VIRT_TYPE" ]; then
+        detect_system
+    fi
+    
     log "开始配置网络优化..."
     
     # 如果是容器类型（LXC或其他容器），跳过此步骤
@@ -482,6 +507,11 @@ configure_network() {
 
 # zram配置函数
 configure_zram() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$VIRT_TYPE" ]; then
+        detect_system
+    fi
+    
     log "开始配置zram..."
     
     # 如果是容器类型（LXC或其他容器），跳过此步骤
@@ -696,6 +726,11 @@ configure_timezone() {
 
 # 日志轮转配置函数
 configure_logrotate() {
+    # 如果必要的变量未设置，先检测系统
+    if [ -z "$DISK_SIZE_GB" ] || [ -z "$VIRT_TYPE" ]; then
+        detect_system
+    fi
+    
     log "开始配置日志轮转..."
     
     # 如果是容器类型（LXC或其他容器），直接配置日志轮转
