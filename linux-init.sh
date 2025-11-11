@@ -832,6 +832,39 @@ EOF
     fi
 }
 
+# 显示帮助信息
+show_help() {
+    echo -e "${GREEN}"
+    echo "==========================================="
+    echo "    Linux系统初始化脚本 - 使用说明"
+    echo "==========================================="
+    echo -e "${NC}"
+    echo "用法:"
+    echo "  ./linux-init.sh                    # 执行完整初始化"
+    echo "  ./linux-init.sh [函数名]           # 执行指定函数"
+    echo "  ./linux-init.sh --help 或 -h      # 显示此帮助信息"
+    echo ""
+    echo "可用函数:"
+    echo "  detect_system          - 系统环境检测"
+    echo "  configure_timezone     - 时区检测和设置"
+    echo "  update_packages        - 软件包更新和升级"
+    echo "  install_basic_tools    - 基础工具安装"
+    echo "  configure_ssh          - SSH安全配置"
+    echo "  configure_network      - 网络优化配置"
+    echo "  configure_zram         - zram配置（如适用）"
+    echo "  install_monitor_agent  - 监控探针安装"
+    echo "  configure_logrotate    - 日志轮转配置"
+    echo "  install_ohmyzsh        - oh-my-zsh配置"
+    echo ""
+    echo "示例:"
+    echo "  ./linux-init.sh detect_system"
+    echo "  ./linux-init.sh install_ohmyzsh"
+    echo "  ./linux-init.sh configure_ssh"
+    echo -e "${YELLOW}"
+    echo "注意：某些函数可能有依赖关系，建议先运行detect_system"
+    echo -e "${NC}"
+}
+
 # 主函数
 main() {
     show_welcome
@@ -875,5 +908,32 @@ main() {
 
 # 脚本入口
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+    if [ $# -eq 0 ]; then
+        # 无参数：执行完整初始化
+        main "$@"
+    else
+        case "$1" in
+            -h|--help)
+                show_help
+                ;;
+            *)
+                # 尝试调用指定函数
+                func_name="$1"
+                if declare -f "$func_name" > /dev/null; then
+                    echo -e "${GREEN}执行函数: $func_name${NC}"
+                    # 初始化进度文件（如果不存在）
+                    if [ ! -f "$PROGRESS_FILE" ]; then
+                        init_progress
+                    fi
+                    "$func_name"
+                    echo -e "${GREEN}函数 $func_name 执行完成${NC}"
+                else
+                    echo -e "${RED}错误: 函数 '$func_name' 不存在${NC}"
+                    echo ""
+                    show_help
+                    exit 1
+                fi
+                ;;
+        esac
+    fi
 fi
