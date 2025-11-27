@@ -763,30 +763,6 @@ configure_logrotate() {
     endscript
 }
 
-# systemd journal日志轮转配置
-/var/log/journal/*/*.journal
-{
-    # 每天检查
-    daily
-    # 只保留2个备份
-    rotate 2
-    # 启用压缩
-    compress
-    # 延迟压缩
-    delaycompress
-    # 文件不存在不报错
-    missingok
-    # 空文件不轮转
-    notifempty
-    # 达到10MB立即轮转
-    size 10M
-    # 对正在写入的文件安全处理
-    copytruncate
-    postrotate
-        # 重新加载journal配置
-        systemctl kill --kill-who=main --signal=SIGUSR2 systemd-journald
-    endscript
-}
 EOF
         )
         
