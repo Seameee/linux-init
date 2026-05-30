@@ -570,7 +570,6 @@ install_monitor_agent() {
     (execute_remote_script "https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh" \
         -e "$monitor_server" \
         --auto-discovery "$auto_discovery" \
-        --disable-web-ssh \
         --month-rotate "$month_rotate") || warning "监控探针安装脚本执行失败或用户取消"
     
     update_progress "监控探针安装" "x" "已安装komari监控探针，主控服务器: $monitor_server, auto-discovery: $auto_discovery, month-rotate: $month_rotate"
